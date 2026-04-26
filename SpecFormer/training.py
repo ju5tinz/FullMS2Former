@@ -126,10 +126,12 @@ def train(data_config: DataConfig,
         num_heads=model_config.num_heads,
         seq_max_len=model_config.max_seq_len,
         penultimate_dim=model_config.penultimate_dim,
-        dropout_rate=model_config.dropout_rate
+        dropout_rate=model_config.dropout_rate,
+        num_encoder_layers=model_config.num_encoder_layers
     ).to(device)
 
     print("\nModel Details:")
+    print(f"  Number of encoder layers: {model_config.num_encoder_layers}")
     print(f"  Token size: {token_size}")
     print(f"  Dictionary size: {dict_size}")
     print(f"  Max sequence length: {model_config.max_seq_len}")
