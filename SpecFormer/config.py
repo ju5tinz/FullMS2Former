@@ -5,9 +5,9 @@ from dataclasses import dataclass, field
 class ModelConfig:
     """Configuration for SpectrumModel architecture."""
     embed_dim: int = 256
-    num_heads: int = 16
+    num_heads: int = 64
     max_seq_len: int = 40
-    penultimate_dim: int = 1024
+    penultimate_dim: int = 2048
     dropout_rate: float = 0.2
     num_encoder_layers: int = 1
 
@@ -36,7 +36,7 @@ class InferenceConfig:
 class DataConfig:
     """Configuration for data loading."""
     data_dir: str = "processed/"
-    alphabet_path: str = "amino_acid_alphabet.txt"
+    alphabet_path: str = "config/amino_acid_alphabet.txt"
     split_dataset: bool = False
     train_files: list = field(default_factory=lambda: [
         'AItrain_LumosSynthetic_2022418v2.ann.txt',

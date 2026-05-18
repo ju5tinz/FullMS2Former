@@ -4,7 +4,7 @@ from spectrum_dataset import SpectrumDataset, get_collate_fn
 from spectrum_model import SpectrumModel
 from torch.utils.data import DataLoader
 import torch.optim as optim
-from utils import generate_dataset_subsets, FilteredCosineLoss, get_device
+from utils import generate_dataset_subsets, FilteredCosineLoss, get_device, migrate_state_dict
 from config import ModelConfig, TrainConfig, DataConfig
 from datetime import datetime
 
@@ -145,7 +145,9 @@ def train(data_config: DataConfig,
 
     if weights_file:
         print(f"Loading model weights from: {weights_file}")
-        model.load_state_dict(torch.load(weights_file, map_location=device))
+        sd = torch.load(weights_file, map_location=device)
+        sd = migrate_state_dict(sd)
+        model.load_state_dict(sd)
 
     opt = optim.AdamW(model.parameters(), lr=train_config.learning_rate, weight_decay=train_config.weight_decay)
     criterion = FilteredCosineLoss()

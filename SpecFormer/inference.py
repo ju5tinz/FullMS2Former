@@ -3,8 +3,9 @@ import torch
 from spectrum_dataset import SpectrumDataset, get_collate_fn
 from torch.utils.data import DataLoader, Subset
 from spectrum_model import SpectrumModel
-from utils import threshold_tensor, generate_dataset_subsets, FilteredCosineLoss, get_device, get_list_from_file
+from utils import threshold_tensor, generate_dataset_subsets, FilteredCosineLoss, get_device, get_list_from_file, migrate_state_dict
 from config import ModelConfig, InferenceConfig, DataConfig
+
 
 
 def one_hot_to_seq(one_hot_seq, alphabet):
@@ -41,9 +42,12 @@ def load_ensemble_models(checkpoint_paths: list, token_size: int, dict_size: int
             num_heads=model_config.num_heads,
             seq_max_len=model_config.max_seq_len,
             penultimate_dim=model_config.penultimate_dim,
-            dropout_rate=model_config.dropout_rate
+            dropout_rate=model_config.dropout_rate,
+            num_encoder_layers=model_config.num_encoder_layers
         )
-        model.load_state_dict(torch.load(path, map_location=device))
+        sd = torch.load(path, map_location=device)
+        sd = migrate_state_dict(sd)
+        model.load_state_dict(sd)
         model.to(device)
         model.eval()
         models.append(model)
@@ -146,7 +150,8 @@ def run_inference(checkpoint_paths: list,
                   model_config: ModelConfig = None,
                   inference_config: InferenceConfig = None,
                   files: list = None,
-                  write_predictions: bool = True):
+                  write_predictions: bool = True,
+                  output_file_prefix: str = ""):
     """
     Runs ensemble inference on specified files.
 
@@ -206,7 +211,7 @@ def run_inference(checkpoint_paths: list,
         output_file = None
         if write_predictions:
             os.makedirs(inference_config.output_dir, exist_ok=True)
-            output_file = os.path.join(inference_config.output_dir, f"ensemble_{filename}")
+            output_file = os.path.join(inference_config.output_dir, f"{output_file_prefix}_{filename}")
 
         with torch.no_grad():
             losses = predict_dataset_ensemble(
@@ -223,7 +228,8 @@ def run_inference_splits(checkpoint_paths: list,
                          model_config: ModelConfig = None,
                          inference_config: InferenceConfig = None,
                          subset_size: int = 60000,
-                         write_predictions: bool = True):
+                         write_predictions: bool = True,
+                         output_file_prefix: str = ""):
     """
     Runs ensemble inference on train/val/test splits.
 
@@ -234,7 +240,7 @@ def run_inference_splits(checkpoint_paths: list,
         inference_config: Inference configuration. Uses defaults if None.
         subset_size: Number of samples to use from train set.
         write_predictions: Whether to write predictions to files.
-
+        output_file_prefix: Prefix to add to output filenames.
     Returns:
         Tuple of (train_losses, val_losses, test_losses).
     """
@@ -279,9 +285,9 @@ def run_inference_splits(checkpoint_paths: list,
     os.makedirs(inference_config.output_dir, exist_ok=True)
 
     with torch.no_grad():
-        train_file = os.path.join(inference_config.output_dir, "ensemble_train_predict.txt") if write_predictions else None
-        val_file = os.path.join(inference_config.output_dir, "ensemble_val_predict.txt") if write_predictions else None
-        test_file = os.path.join(inference_config.output_dir, "ensemble_test_predict.txt") if write_predictions else None
+        train_file = os.path.join(inference_config.output_dir, f"{output_file_prefix}_train_predict.txt") if write_predictions else None
+        val_file = os.path.join(inference_config.output_dir, f"{output_file_prefix}_val_predict.txt") if write_predictions else None
+        test_file = os.path.join(inference_config.output_dir, f"{output_file_prefix}_test_predict.txt") if write_predictions else None
 
         print("\n--- Train Split ---")
         train_losses = predict_dataset_ensemble(models, train_loader, alphabet, device, inference_config, train_file)

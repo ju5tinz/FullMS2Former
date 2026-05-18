@@ -42,6 +42,31 @@ def generate_dataset_subsets(dataset, seed):
     train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size], generator=generator)
     return train_dataset, val_dataset, test_dataset
 
+_OLD_ENCODER_PREFIXES = (
+    "pre_attn_layernorm.", "attention.",
+    "post_attn_layernorm1.", "post_attn_layernorm2.",
+    "post_attn_FFN1.", "post_attn_FFN2.",
+)
+_OLD_ENCODER_KEY_MAP = {
+    "post_attn_layernorm1": "post_attn_layernorm",
+    "post_attn_FFN1": "ffn1",
+    "post_attn_FFN2": "ffn2",
+    "post_attn_layernorm2": "post_ffn_layernorm",
+}
+
+
+def migrate_state_dict(state_dict):
+    """Remaps old flat encoder keys to encoder_layers.0.* with updated layer names."""
+    new_sd = {}
+    for key, val in state_dict.items():
+        if any(key.startswith(p) for p in _OLD_ENCODER_PREFIXES):
+            for old, new in _OLD_ENCODER_KEY_MAP.items():
+                key = key.replace(old, new, 1)
+            key = f"encoder_layers.0.{key}"
+        new_sd[key] = val
+    return new_sd
+
+
 def cosine_loss(output, target):
     return 1 - F.cosine_similarity(output, target, dim=1).mean()
 
